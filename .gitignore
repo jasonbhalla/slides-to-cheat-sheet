@@ -7,4 +7,7 @@
 !make_handout.py
 !handout_config.json
 !README.md
-!.gitmodules
+!input/
+!output/
+!input/.gitkeep
+!output/.gitkeep

@@ -9,6 +9,11 @@ import sys
 from pathlib import Path
 
 
+REPO_ROOT = Path(__file__).resolve().parent
+INPUT_DIR = REPO_ROOT / "input"
+OUTPUT_DIR = REPO_ROOT / "output"
+
+
 def require_command(name: str) -> None:
     if shutil.which(name) is None:
         raise SystemExit(f"Required command not found: {name}")
@@ -309,18 +314,51 @@ def write_tex(tex_path: Path, combined_pdf_name: str, layout: list[dict], config
     tex_path.write_text(tex, encoding="utf-8")
 
 
+def resolve_input_pdfs(user_args: list[str]) -> list[Path]:
+    INPUT_DIR.mkdir(exist_ok=True)
+
+    if user_args:
+        resolved = []
+        for name in user_args:
+            pdf_path = INPUT_DIR / name
+            if not pdf_path.exists():
+                raise SystemExit(f"Missing input file: {pdf_path}")
+            if pdf_path.suffix.lower() != ".pdf":
+                raise SystemExit(f"Input file is not a PDF: {pdf_path}")
+            resolved.append(pdf_path.resolve())
+        return resolved
+
+    auto_found = sorted(
+        p.resolve()
+        for p in INPUT_DIR.iterdir()
+        if p.is_file() and p.suffix.lower() == ".pdf"
+    )
+
+    if not auto_found:
+        raise SystemExit("No PDF files found in input/")
+
+    return auto_found
+
+
 def main():
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 3:
         print(
             "Usage:\n"
-            "  python3 make_handout.py CONFIG.json output.pdf lecture1.pdf lecture2.pdf [lecture3.pdf ...]"
+            "  python3 make_handout.py CONFIG.json output.pdf [lecture1.pdf lecture2.pdf ...]\n\n"
+            "If no lecture PDFs are listed, the script uses all PDFs in input/."
         )
         sys.exit(1)
 
-    config_path = Path(sys.argv[1]).resolve()
-    output_pdf = Path(sys.argv[2]).resolve()
-    input_pdfs = [Path(p).resolve() for p in sys.argv[3:]]
-    workdir = output_pdf.parent
+    config_path = (REPO_ROOT / sys.argv[1]).resolve() if not Path(sys.argv[1]).is_absolute() else Path(sys.argv[1]).resolve()
+    output_name = sys.argv[2]
+    lecture_file_args = sys.argv[3:]
+
+    if output_name.lower().endswith(".pdf"):
+        output_pdf = OUTPUT_DIR / output_name
+    else:
+        output_pdf = OUTPUT_DIR / f"{output_name}.pdf"
+
+    OUTPUT_DIR.mkdir(exist_ok=True)
 
     config = load_config(config_path)
 
@@ -332,9 +370,7 @@ def main():
     require_command("pdfunite")
     require_command("pdflatex")
 
-    for pdf in input_pdfs:
-        if not pdf.exists():
-            raise SystemExit(f"Missing file: {pdf}")
+    input_pdfs = resolve_input_pdfs(lecture_file_args)
 
     counts = [pdf_page_count(pdf) for pdf in input_pdfs]
     total_slides = sum(counts)
@@ -343,6 +379,9 @@ def main():
         raise SystemExit(f"Need at least {output_pages} total slides.")
 
     print("Using config:", config_path.name)
+    print("Input directory:", INPUT_DIR)
+    print("Output directory:", OUTPUT_DIR)
+
     print("\nInput files and slide counts:")
     for pdf, count in zip(input_pdfs, counts):
         print(f"  {pdf.name}: {count}")
@@ -374,18 +413,18 @@ def main():
     offset_x, offset_y = get_offset_settings(config)
     print(f"Offset: x={offset_x} pt, y={offset_y} pt")
 
-    combined_pdf = workdir / "combined.pdf"
-    tex_file = workdir / "handout.tex"
-    aux_file = workdir / "handout.aux"
-    log_file = workdir / "handout.log"
-    produced_pdf = workdir / "handout.pdf"
+    combined_pdf = OUTPUT_DIR / "combined.pdf"
+    tex_file = OUTPUT_DIR / "handout.tex"
+    aux_file = OUTPUT_DIR / "handout.aux"
+    log_file = OUTPUT_DIR / "handout.log"
+    produced_pdf = OUTPUT_DIR / "handout.pdf"
 
     print("\nCombining PDFs...")
     subprocess.run(
         ["pdfunite", *[str(p) for p in input_pdfs], str(combined_pdf)],
         check=True,
         text=True,
-        cwd=workdir,
+        cwd=OUTPUT_DIR,
     )
 
     print("Writing LaTeX file...")
@@ -396,7 +435,7 @@ def main():
         ["pdflatex", "-interaction=nonstopmode", tex_file.name],
         check=True,
         text=True,
-        cwd=workdir,
+        cwd=OUTPUT_DIR,
     )
 
     if not produced_pdf.exists():
