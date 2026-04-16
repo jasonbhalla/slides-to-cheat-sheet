@@ -1,0 +1,44 @@
+{
+  "output_pages": 4,
+
+  "output_page": {
+    "width_in": 11.0,
+    "height_in": 8.5,
+    "margins_in": {
+      "left": 0.25,
+      "bottom": 0.25,
+      "right": 0.25,
+      "top": 0.25
+    }
+  },
+
+  "slide": {
+    "width_units": 16,
+    "height_units": 9
+  },
+
+  "trim_pt": {
+    "left": 0,
+    "bottom": 0,
+    "right": 0,
+    "top": 0
+  },
+
+  "offset_pt": {
+    "x": 0,
+    "y": 0
+  },
+
+  "latex": {
+    "paper_size": "custom",
+    "landscape": true,
+    "frame": false,
+    "column_major_order": true,
+    "delta_pt": {
+      "x": 0,
+      "y": 0
+    }
+  },
+
+  "cleanup": true
+}

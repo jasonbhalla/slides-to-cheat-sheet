@@ -1,44 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
 import math
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-
-
-# ---------- USER SETTINGS ----------
-
-# Number of output pages in the final handout PDF
-OUTPUT_PAGES = 4
-
-# Output page size: US Letter landscape
-PAGE_W_IN = 11.0
-PAGE_H_IN = 8.5
-
-# Outer page margins on the handout pages
-MARGIN_IN = 0.25
-
-# Assumed slide aspect ratio
-# Use 16/9 for most modern slides, 4/3 for older slides
-SLIDE_W = 16
-SLIDE_H = 9
-
-# Trim values applied to EVERY slide before placement, in PDF points:
-# trim = left bottom right top
-# For NO cutoff, set all to 0
-TRIM_LEFT = 0
-TRIM_BOTTOM = 0
-TRIM_RIGHT = 0
-TRIM_TOP = 0
-
-# Optional horizontal/vertical offset of the whole n-up block, in points
-# Leave at 0 unless you specifically need to push the block inward.
-OFFSET_X = 0
-OFFSET_Y = 0
-
-# ----------------------------------
 
 
 def require_command(name: str) -> None:
@@ -59,23 +27,122 @@ def pdf_page_count(pdf_path: Path) -> int:
     raise RuntimeError(f"Could not determine page count for {pdf_path}")
 
 
-def scale(rows: int, cols: int) -> float:
-    usable_w = PAGE_W_IN - 2 * MARGIN_IN
-    usable_h = PAGE_H_IN - 2 * MARGIN_IN
+def load_config(config_path: Path) -> dict:
+    try:
+        with config_path.open("r", encoding="utf-8") as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        raise SystemExit(f"Config file not found: {config_path}")
+    except json.JSONDecodeError as e:
+        raise SystemExit(f"Invalid JSON in config file {config_path}: {e}")
+
+    required_top_level = [
+        "output_pages",
+        "output_page",
+        "slide",
+        "trim_pt",
+        "offset_pt",
+        "latex",
+        "cleanup",
+    ]
+    for key in required_top_level:
+        if key not in config:
+            raise SystemExit(f"Missing config key: {key}")
+
+    return config
+
+
+def get_output_page_settings(config: dict) -> tuple[float, float, float, float, float, float]:
+    page = config["output_page"]
+
+    page_width_in = float(page["width_in"])
+    page_height_in = float(page["height_in"])
+
+    margins = page["margins_in"]
+    margin_left_in = float(margins["left"])
+    margin_bottom_in = float(margins["bottom"])
+    margin_right_in = float(margins["right"])
+    margin_top_in = float(margins["top"])
+
+    return (
+        page_width_in,
+        page_height_in,
+        margin_left_in,
+        margin_bottom_in,
+        margin_right_in,
+        margin_top_in,
+    )
+
+
+def get_slide_settings(config: dict) -> tuple[float, float]:
+    slide = config["slide"]
+    return float(slide["width_units"]), float(slide["height_units"])
+
+
+def get_trim_settings(config: dict) -> tuple[float, float, float, float]:
+    trim = config["trim_pt"]
+    return (
+        float(trim["left"]),
+        float(trim["bottom"]),
+        float(trim["right"]),
+        float(trim["top"]),
+    )
+
+
+def get_offset_settings(config: dict) -> tuple[float, float]:
+    offset = config["offset_pt"]
+    return float(offset["x"]), float(offset["y"])
+
+
+def scale(
+    rows: int,
+    cols: int,
+    page_width_in: float,
+    page_height_in: float,
+    margin_left_in: float,
+    margin_bottom_in: float,
+    margin_right_in: float,
+    margin_top_in: float,
+    slide_width_units: float,
+    slide_height_units: float,
+) -> float:
+    usable_w = page_width_in - margin_left_in - margin_right_in
+    usable_h = page_height_in - margin_top_in - margin_bottom_in
+
+    if usable_w <= 0 or usable_h <= 0:
+        return 0.0
+
     cell_w = usable_w / cols
     cell_h = usable_h / rows
-    return min(cell_w / SLIDE_W, cell_h / SLIDE_H)
+    return min(cell_w / slide_width_units, cell_h / slide_height_units)
 
 
-def choose_best_grid(n: int) -> tuple[int, int, float]:
-    """
-    For a page containing n slides, choose rows/cols that maximize slide scale.
-    Returns (rows, cols, scale).
-    """
+def choose_best_grid(
+    n: int,
+    page_width_in: float,
+    page_height_in: float,
+    margin_left_in: float,
+    margin_bottom_in: float,
+    margin_right_in: float,
+    margin_top_in: float,
+    slide_width_units: float,
+    slide_height_units: float,
+) -> tuple[int, int, float]:
     best = None
     for rows in range(1, n + 1):
         cols = math.ceil(n / rows)
-        s = scale(rows, cols)
+        s = scale(
+            rows,
+            cols,
+            page_width_in,
+            page_height_in,
+            margin_left_in,
+            margin_bottom_in,
+            margin_right_in,
+            margin_top_in,
+            slide_width_units,
+            slide_height_units,
+        )
         cand = (s, rows, cols)
         if best is None or cand > best:
             best = cand
@@ -86,17 +153,17 @@ def choose_best_grid(n: int) -> tuple[int, int, float]:
     return rows, cols, s
 
 
-def choose_layout(total_slides: int, output_pages: int):
-    """
-    Split total slides across output_pages as evenly as possible,
-    then choose the best grid for each page independently.
+def choose_layout(total_slides: int, output_pages: int, config: dict) -> list[dict]:
+    (
+        page_width_in,
+        page_height_in,
+        margin_left_in,
+        margin_bottom_in,
+        margin_right_in,
+        margin_top_in,
+    ) = get_output_page_settings(config)
+    slide_width_units, slide_height_units = get_slide_settings(config)
 
-    Returns a list of dicts:
-      [
-        {"count": ..., "rows": ..., "cols": ...},
-        ...
-      ]
-    """
     base = total_slides // output_pages
     remainder = total_slides % output_pages
 
@@ -107,7 +174,17 @@ def choose_layout(total_slides: int, output_pages: int):
 
     layout = []
     for count in counts:
-        rows, cols, s = choose_best_grid(count)
+        rows, cols, s = choose_best_grid(
+            count,
+            page_width_in,
+            page_height_in,
+            margin_left_in,
+            margin_bottom_in,
+            margin_right_in,
+            margin_top_in,
+            slide_width_units,
+            slide_height_units,
+        )
         layout.append(
             {
                 "count": count,
@@ -120,60 +197,105 @@ def choose_layout(total_slides: int, output_pages: int):
     return layout
 
 
-def write_tex(
-    tex_path: Path,
-    combined_pdf_name: str,
-    layout: list[dict],
-) -> None:
-    trim_str = f"{TRIM_LEFT} {TRIM_BOTTOM} {TRIM_RIGHT} {TRIM_TOP}"
+def latex_escape_path(path_str: str) -> str:
+    return path_str.replace("\\", "/")
+
+
+def build_geometry_margin_string(config: dict) -> str:
+    page = config["output_page"]
+    margins = page["margins_in"]
+    return (
+        f"left={margins['left']}in,"
+        f"bottom={margins['bottom']}in,"
+        f"right={margins['right']}in,"
+        f"top={margins['top']}in"
+    )
+
+
+def write_tex(tex_path: Path, combined_pdf_name: str, layout: list[dict], config: dict) -> None:
+    trim_left, trim_bottom, trim_right, trim_top = get_trim_settings(config)
+    offset_x, offset_y = get_offset_settings(config)
+
+    page = config["output_page"]
+    page_width_in = page["width_in"]
+    page_height_in = page["height_in"]
+
+    latex = config["latex"]
+    paper_size = latex["paper_size"]
+    landscape = bool(latex["landscape"])
+    frame = "true" if latex["frame"] else "false"
+    column = "true" if latex["column_major_order"] else "false"
+    delta_x = float(latex["delta_pt"]["x"])
+    delta_y = float(latex["delta_pt"]["y"])
+
+    trim_str = f"{trim_left} {trim_bottom} {trim_right} {trim_top}"
+
+    geometry_parts = []
+    if paper_size == "custom":
+        geometry_parts.append(f"paperwidth={page_width_in}in")
+        geometry_parts.append(f"paperheight={page_height_in}in")
+    else:
+        geometry_parts.append(paper_size)
+
+    if landscape:
+        geometry_parts.append("landscape")
+
+    geometry_parts.append(build_geometry_margin_string(config))
+    geometry_options = ",".join(geometry_parts)
 
     blocks = []
     start = 1
 
-    for page in layout:
-        count = page["count"]
-        rows = page["rows"]
-        cols = page["cols"]
+    for page_layout in layout:
+        count = page_layout["count"]
+        rows = page_layout["rows"]
+        cols = page_layout["cols"]
         end = start + count - 1
 
         block = rf"""\includepdf[
   pages={{{start}-{end}}},
   nup={cols}x{rows},
-  delta=0 0,
-  offset={OFFSET_X} {OFFSET_Y},
-  frame=false,
-  column=true,
+  delta={delta_x} {delta_y},
+  offset={offset_x} {offset_y},
+  frame={frame},
+  column={column},
   trim={trim_str},
   clip=true
-]{{{combined_pdf_name}}}
+]{{{latex_escape_path(combined_pdf_name)}}}
 """
         blocks.append(block)
         start = end + 1
 
     tex = rf"""\documentclass{{article}}
-\usepackage[letterpaper,landscape,margin=0.25in]{{geometry}}
+\usepackage[{geometry_options}]{{geometry}}
 \usepackage{{pdfpages}}
 \pagestyle{{empty}}
 
 \begin{{document}}
 
-{''.join(blocks)}
-\end{{document}}
+{''.join(blocks)}\end{{document}}
 """
     tex_path.write_text(tex, encoding="utf-8")
 
 
 def main():
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         print(
             "Usage:\n"
-            "  python3 make_handout.py output.pdf lecture1.pdf lecture2.pdf [lecture3.pdf ...]"
+            "  python3 make_handout.py CONFIG.json output.pdf lecture1.pdf lecture2.pdf [lecture3.pdf ...]"
         )
         sys.exit(1)
 
-    output_pdf = Path(sys.argv[1]).resolve()
-    input_pdfs = [Path(p).resolve() for p in sys.argv[2:]]
+    config_path = Path(sys.argv[1]).resolve()
+    output_pdf = Path(sys.argv[2]).resolve()
+    input_pdfs = [Path(p).resolve() for p in sys.argv[3:]]
     workdir = output_pdf.parent
+
+    config = load_config(config_path)
+
+    output_pages = int(config["output_pages"])
+    if output_pages < 1:
+        raise SystemExit("config.output_pages must be at least 1")
 
     require_command("pdfinfo")
     require_command("pdfunite")
@@ -186,35 +308,37 @@ def main():
     counts = [pdf_page_count(pdf) for pdf in input_pdfs]
     total_slides = sum(counts)
 
-    if total_slides < OUTPUT_PAGES:
-        raise SystemExit(f"Need at least {OUTPUT_PAGES} total slides.")
+    if total_slides < output_pages:
+        raise SystemExit(f"Need at least {output_pages} total slides.")
 
-    print("Input files and slide counts:")
+    print("Using config:", config_path.name)
+    print("\nInput files and slide counts:")
     for pdf, count in zip(input_pdfs, counts):
         print(f"  {pdf.name}: {count}")
     print(f"Total slides: {total_slides}")
 
-    layout = choose_layout(total_slides, OUTPUT_PAGES)
+    layout = choose_layout(total_slides, output_pages, config)
 
     print("\nChosen layout:")
     running_total = 0
-    for i, page in enumerate(layout, start=1):
-        count = page["count"]
-        rows = page["rows"]
-        cols = page["cols"]
+    for i, page_layout in enumerate(layout, start=1):
+        count = page_layout["count"]
+        rows = page_layout["rows"]
+        cols = page_layout["cols"]
         start = running_total + 1
         end = running_total + count
-        print(
-            f"  Page {i}: slides {start}-{end} "
-            f"in {rows} rows x {cols} cols"
-        )
+        print(f"  Page {i}: slides {start}-{end} in {rows} rows x {cols} cols")
         running_total = end
 
+    trim_left, trim_bottom, trim_right, trim_top = get_trim_settings(config)
     print("\nTrim applied to every slide:")
     print(
-        f"  left={TRIM_LEFT} pt, bottom={TRIM_BOTTOM} pt, "
-        f"right={TRIM_RIGHT} pt, top={TRIM_TOP} pt"
+        f"  left={trim_left} pt, bottom={trim_bottom} pt, "
+        f"right={trim_right} pt, top={trim_top} pt"
     )
+
+    offset_x, offset_y = get_offset_settings(config)
+    print(f"Offset: x={offset_x} pt, y={offset_y} pt")
 
     combined_pdf = workdir / "combined.pdf"
     tex_file = workdir / "handout.tex"
@@ -231,7 +355,7 @@ def main():
     )
 
     print("Writing LaTeX file...")
-    write_tex(tex_file, combined_pdf.name, layout)
+    write_tex(tex_file, combined_pdf.name, layout, config)
 
     print("Running pdflatex...")
     subprocess.run(
@@ -251,9 +375,11 @@ def main():
     print(f"\nDone.")
     print(f"Created: {output_pdf}")
 
-    for extra in [aux_file, log_file, tex_file]:
-        if extra.exists():
-            extra.unlink()
+    cleanup = bool(config["cleanup"])
+    if cleanup:
+        for extra in [aux_file, log_file, tex_file]:
+            if extra.exists():
+                extra.unlink()
 
 
 if __name__ == "__main__":
