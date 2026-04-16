@@ -72,10 +72,10 @@ Open `handout_config.json` and set the values you want.
 Open Terminal, go into the folder, and run (for as many slideshow files as you want):
 
 ```bash
-python3 make_handout.py handout_config.json <desired output filename> <slideshow 1 file name> <slideshow 2 file name> <slideshow ... file name> 
+python3 make_handout.py handout_config.json <desired output filename> <slideshow 1 file name> <slideshow 2 file name> <slideshow ... file name> ...
 ```
 
 Example:
 ```bash
-python3 make_handout.py handout_config.json output.pdf lecture1.pdf lecture2.pdf lecture3.pdf
+python3 make_handout.py handout_config.json cs_101_cheat_sheet.pdf lecture1.pdf lecture2.pdf lecture3.pdf
 ```
