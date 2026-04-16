@@ -1,0 +1,10 @@
+# Ignores everything by default
+*
+
+# Then, explicitly allows only the files actually needed for the project
+# (so that actual lecture slides, outputs, etc. don't get tracked by Git)
+!.gitignore
+!make_handout.py
+!handout_config.json
+!README.md
+!.gitmodules
