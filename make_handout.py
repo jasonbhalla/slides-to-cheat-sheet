@@ -10,12 +10,15 @@ from pathlib import Path
 
 # ---------- USER SETTINGS ----------
 
+# Number of output pages in the final handout PDF
+OUTPUT_PAGES = 4
+
 # Output page size: US Letter landscape
 PAGE_W_IN = 11.0
 PAGE_H_IN = 8.5
 
 # Outer page margins on the handout pages
-MARGIN_IN = 0
+MARGIN_IN = 0.25
 
 # Assumed slide aspect ratio
 # Use 16/9 for most modern slides, 4/3 for older slides
@@ -24,18 +27,16 @@ SLIDE_H = 9
 
 # Trim values applied to EVERY slide before placement, in PDF points:
 # trim = left bottom right top
-#
-# 72 pt = 1 inch
-# 18 pt = 0.25 inch
-# 24 pt = 0.333 inch
-# 36 pt = 0.5 inch
-#
-# Adjust these as needed.
-# Note to SELF: I opened the PDF in affinity publisher, measured the margins of the slides, and the pt for those was what I put for the trim.
-TRIM_LEFT = 73.2
-TRIM_BOTTOM = 40.7
-TRIM_RIGHT = 73.2
-TRIM_TOP = 63.4
+# For NO cutoff, set all to 0
+TRIM_LEFT = 0
+TRIM_BOTTOM = 0
+TRIM_RIGHT = 0
+TRIM_TOP = 0
+
+# Optional horizontal/vertical offset of the whole n-up block, in points
+# Leave at 0 unless you specifically need to push the block inward.
+OFFSET_X = 0
+OFFSET_Y = 0
 
 # ----------------------------------
 
@@ -66,48 +67,88 @@ def scale(rows: int, cols: int) -> float:
     return min(cell_w / SLIDE_W, cell_h / SLIDE_H)
 
 
-def choose_layout(total_slides: int):
+def choose_best_grid(n: int) -> tuple[int, int, float]:
+    """
+    For a page containing n slides, choose rows/cols that maximize slide scale.
+    Returns (rows, cols, scale).
+    """
     best = None
-
-    for k in range(1, total_slides):
-        n1 = k
-        n2 = total_slides - k
-
-        for r1 in range(1, n1 + 1):
-            c1 = math.ceil(n1 / r1)
-            s1 = scale(r1, c1)
-
-            for r2 in range(1, n2 + 1):
-                c2 = math.ceil(n2 / r2)
-                s2 = scale(r2, c2)
-
-                score = (min(s1, s2), s1 + s2)
-                candidate = (score, n1, r1, c1, n2, r2, c2)
-
-                if best is None or candidate > best:
-                    best = candidate
+    for rows in range(1, n + 1):
+        cols = math.ceil(n / rows)
+        s = scale(rows, cols)
+        cand = (s, rows, cols)
+        if best is None or cand > best:
+            best = cand
 
     if best is None:
-        raise RuntimeError("Could not choose a layout.")
+        raise RuntimeError("Could not choose grid.")
+    s, rows, cols = best
+    return rows, cols, s
 
-    _, n1, r1, c1, n2, r2, c2 = best
-    return n1, r1, c1, n2, r2, c2
+
+def choose_layout(total_slides: int, output_pages: int):
+    """
+    Split total slides across output_pages as evenly as possible,
+    then choose the best grid for each page independently.
+
+    Returns a list of dicts:
+      [
+        {"count": ..., "rows": ..., "cols": ...},
+        ...
+      ]
+    """
+    base = total_slides // output_pages
+    remainder = total_slides % output_pages
+
+    counts = []
+    for i in range(output_pages):
+        count = base + (1 if i < remainder else 0)
+        counts.append(count)
+
+    layout = []
+    for count in counts:
+        rows, cols, s = choose_best_grid(count)
+        layout.append(
+            {
+                "count": count,
+                "rows": rows,
+                "cols": cols,
+                "scale": s,
+            }
+        )
+
+    return layout
 
 
 def write_tex(
     tex_path: Path,
     combined_pdf_name: str,
-    n1: int,
-    r1: int,
-    c1: int,
-    n2: int,
-    r2: int,
-    c2: int,
+    layout: list[dict],
 ) -> None:
-    start2 = n1 + 1
-    end2 = n1 + n2
-
     trim_str = f"{TRIM_LEFT} {TRIM_BOTTOM} {TRIM_RIGHT} {TRIM_TOP}"
+
+    blocks = []
+    start = 1
+
+    for page in layout:
+        count = page["count"]
+        rows = page["rows"]
+        cols = page["cols"]
+        end = start + count - 1
+
+        block = rf"""\includepdf[
+  pages={{{start}-{end}}},
+  nup={cols}x{rows},
+  delta=0 0,
+  offset={OFFSET_X} {OFFSET_Y},
+  frame=false,
+  column=true,
+  trim={trim_str},
+  clip=true
+]{{{combined_pdf_name}}}
+"""
+        blocks.append(block)
+        start = end + 1
 
     tex = rf"""\documentclass{{article}}
 \usepackage[letterpaper,landscape,margin=0.25in]{{geometry}}
@@ -116,26 +157,7 @@ def write_tex(
 
 \begin{{document}}
 
-\includepdf[
-  pages={{1-{n1}}},
-  nup={c1}x{r1},
-  delta=0 0,
-  frame=false,
-  column=true,
-  trim={trim_str},
-  clip=true
-]{{{combined_pdf_name}}}
-
-\includepdf[
-  pages={{{start2}-{end2}}},
-  nup={c2}x{r2},
-  delta=0 0,
-  frame=false,
-  column=true,
-  trim={trim_str},
-  clip=true
-]{{{combined_pdf_name}}}
-
+{''.join(blocks)}
 \end{{document}}
 """
     tex_path.write_text(tex, encoding="utf-8")
@@ -164,22 +186,35 @@ def main():
     counts = [pdf_page_count(pdf) for pdf in input_pdfs]
     total_slides = sum(counts)
 
-    if total_slides < 2:
-        raise SystemExit("Need at least 2 total slides.")
+    if total_slides < OUTPUT_PAGES:
+        raise SystemExit(f"Need at least {OUTPUT_PAGES} total slides.")
 
     print("Input files and slide counts:")
     for pdf, count in zip(input_pdfs, counts):
         print(f"  {pdf.name}: {count}")
     print(f"Total slides: {total_slides}")
 
-    n1, r1, c1, n2, r2, c2 = choose_layout(total_slides)
+    layout = choose_layout(total_slides, OUTPUT_PAGES)
 
     print("\nChosen layout:")
-    print(f"  Page 1: first {n1} slides in {r1} rows x {c1} cols")
-    print(f"  Page 2: next  {n2} slides in {r2} rows x {c2} cols")
+    running_total = 0
+    for i, page in enumerate(layout, start=1):
+        count = page["count"]
+        rows = page["rows"]
+        cols = page["cols"]
+        start = running_total + 1
+        end = running_total + count
+        print(
+            f"  Page {i}: slides {start}-{end} "
+            f"in {rows} rows x {cols} cols"
+        )
+        running_total = end
 
     print("\nTrim applied to every slide:")
-    print(f"  left={TRIM_LEFT} pt, bottom={TRIM_BOTTOM} pt, right={TRIM_RIGHT} pt, top={TRIM_TOP} pt")
+    print(
+        f"  left={TRIM_LEFT} pt, bottom={TRIM_BOTTOM} pt, "
+        f"right={TRIM_RIGHT} pt, top={TRIM_TOP} pt"
+    )
 
     combined_pdf = workdir / "combined.pdf"
     tex_file = workdir / "handout.tex"
@@ -196,7 +231,7 @@ def main():
     )
 
     print("Writing LaTeX file...")
-    write_tex(tex_file, combined_pdf.name, n1, r1, c1, n2, r2, c2)
+    write_tex(tex_file, combined_pdf.name, layout)
 
     print("Running pdflatex...")
     subprocess.run(
@@ -216,7 +251,6 @@ def main():
     print(f"\nDone.")
     print(f"Created: {output_pdf}")
 
-    # Cleanup temporary files
     for extra in [aux_file, log_file, tex_file]:
         if extra.exists():
             extra.unlink()
