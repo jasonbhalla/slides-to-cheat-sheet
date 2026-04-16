@@ -52,7 +52,7 @@ def load_config(config_path: Path) -> dict:
     return config
 
 
-def get_output_page_settings(config: dict) -> tuple[float, float, float, float, float, float]:
+def get_base_output_page_settings(config: dict) -> tuple[float, float, float, float, float, float]:
     page = config["output_page"]
 
     page_width_in = float(page["width_in"])
@@ -63,6 +63,41 @@ def get_output_page_settings(config: dict) -> tuple[float, float, float, float, 
     margin_bottom_in = float(margins["bottom"])
     margin_right_in = float(margins["right"])
     margin_top_in = float(margins["top"])
+
+    return (
+        page_width_in,
+        page_height_in,
+        margin_left_in,
+        margin_bottom_in,
+        margin_right_in,
+        margin_top_in,
+    )
+
+
+def get_effective_page_dimensions(config: dict) -> tuple[float, float]:
+    page = config["output_page"]
+    latex = config["latex"]
+
+    width_in = float(page["width_in"])
+    height_in = float(page["height_in"])
+    landscape = bool(latex["landscape"])
+
+    if landscape:
+        return max(width_in, height_in), min(width_in, height_in)
+    return min(width_in, height_in), max(width_in, height_in)
+
+
+def get_effective_output_page_settings(config: dict) -> tuple[float, float, float, float, float, float]:
+    (
+        _base_width_in,
+        _base_height_in,
+        margin_left_in,
+        margin_bottom_in,
+        margin_right_in,
+        margin_top_in,
+    ) = get_base_output_page_settings(config)
+
+    page_width_in, page_height_in = get_effective_page_dimensions(config)
 
     return (
         page_width_in,
@@ -161,7 +196,7 @@ def choose_layout(total_slides: int, output_pages: int, config: dict) -> list[di
         margin_bottom_in,
         margin_right_in,
         margin_top_in,
-    ) = get_output_page_settings(config)
+    ) = get_effective_output_page_settings(config)
     slide_width_units, slide_height_units = get_slide_settings(config)
 
     base = total_slides // output_pages
@@ -216,29 +251,25 @@ def write_tex(tex_path: Path, combined_pdf_name: str, layout: list[dict], config
     trim_left, trim_bottom, trim_right, trim_top = get_trim_settings(config)
     offset_x, offset_y = get_offset_settings(config)
 
-    page = config["output_page"]
-    page_width_in = page["width_in"]
-    page_height_in = page["height_in"]
-
     latex = config["latex"]
     paper_size = latex["paper_size"]
-    landscape = bool(latex["landscape"])
     frame = "true" if latex["frame"] else "false"
     column = "true" if latex["column_major_order"] else "false"
     delta_x = float(latex["delta_pt"]["x"])
     delta_y = float(latex["delta_pt"]["y"])
 
+    effective_width_in, effective_height_in = get_effective_page_dimensions(config)
+
     trim_str = f"{trim_left} {trim_bottom} {trim_right} {trim_top}"
 
     geometry_parts = []
     if paper_size == "custom":
-        geometry_parts.append(f"paperwidth={page_width_in}in")
-        geometry_parts.append(f"paperheight={page_height_in}in")
+        geometry_parts.append(f"paperwidth={effective_width_in}in")
+        geometry_parts.append(f"paperheight={effective_height_in}in")
     else:
         geometry_parts.append(paper_size)
-
-    if landscape:
-        geometry_parts.append("landscape")
+        if bool(latex["landscape"]):
+            geometry_parts.append("landscape")
 
     geometry_parts.append(build_geometry_margin_string(config))
     geometry_options = ",".join(geometry_parts)
@@ -316,6 +347,9 @@ def main():
     for pdf, count in zip(input_pdfs, counts):
         print(f"  {pdf.name}: {count}")
     print(f"Total slides: {total_slides}")
+
+    effective_width_in, effective_height_in = get_effective_page_dimensions(config)
+    print(f"\nEffective output page size: {effective_width_in}in x {effective_height_in}in")
 
     layout = choose_layout(total_slides, output_pages, config)
 
