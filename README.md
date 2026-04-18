@@ -3,7 +3,7 @@
 
 This script combines multiple lecture slide PDFs into one output PDF handout.
 
-## What to add
+## What to Add
 
 Ensure these core files are in the main folder, `slides-to-cheat-sheet`:
 
@@ -16,11 +16,11 @@ In `input/`, add your lecture slide PDFs, for example:
   - `lecture3.pdf`
   - etc.
 
-## What to edit
+## What to Edit
 
 Open `config.json` and set the values you want.
 
-### What each setting means
+### What Each Setting Means
 
 - `output_pages`  
   How many pages the final handout PDF should have.
@@ -69,7 +69,7 @@ Open `config.json` and set the values you want.
 - `cleanup`  
   If `true`, temporary files like `.log` and generated `.tex` are deleted after the script runs.
 
-## How to run it
+## How to Run
 
 Open Terminal, go into the folder, and run:
 
