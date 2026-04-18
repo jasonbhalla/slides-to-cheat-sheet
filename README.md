@@ -3,20 +3,22 @@
 
 This script combines multiple lecture slide PDFs into one output PDF handout.
 
-## What to put in the folder
+## What to add
 
-Put these files in the same folder:
+Ensure these core files are in the main folder, `slides-to-cheat-sheet`:
 
-- `make_handout.py`
-- `handout_config.json`
-- your lecture slide PDFs, for example:
+- `generate_sheet.py`
+- `config.json`
+
+In `input/`, add your lecture slide PDFs, for example:
   - `lecture1.pdf`
   - `lecture2.pdf`
   - `lecture3.pdf`
+  - etc.
 
 ## What to edit
 
-Open `handout_config.json` and set the values you want.
+Open `config.json` and set the values you want.
 
 ### What each setting means
 
@@ -69,13 +71,38 @@ Open `handout_config.json` and set the values you want.
 
 ## How to run it
 
-Open Terminal, go into the folder, and run (for as many slideshow files as you want):
+Open Terminal, go into the folder, and run:
 
 ```bash
-python3 make_handout.py handout_config.json <desired output filename> <slideshow 1 file name> <slideshow 2 file name> <slideshow ... file name> ...
+python3 generate_sheet.py <output_file.pdf> [<input_file_1.pdf> ...]
 ```
 
-Example:
+- `generate_sheet.py` is the script that you run.
+- `<output_file.pdf>` is the file name to use for the outputted PDF cheat sheet, that will appear in `output/` (along with a file called `combined.pdf` which is simply all input slides combined into one PDF).
+- If you want to specify specific files (or a specific order of the files) in `input/` to be used in the output, list the file names (e.g. `<input_file_1.pdf> <input_file_2.pdf> ...`). You can also not specify any input files, in which case all PDFs in `input/` will automatically be used in file order.
+
+## Examples of Usage
+
+### Example 1
+#### Example (to create `output/cs_101_cheat_sheet.pdf` using the slides from `lecture1.pdf`, `lecture2.pdf`, `lecture3.pdf` in that order):
+- First, place `lecture1.pdf`, `lecture2.pdf`, `lecture3.pdf` in `input/`.
+- Next, customize parameters (if desired) in `config.json`.
+- Then, run:
 ```bash
-python3 make_handout.py handout_config.json cs_101_cheat_sheet.pdf lecture1.pdf lecture2.pdf lecture3.pdf
+python3 generate_sheet.py cs_101_cheat_sheet.pdf lecture1.pdf lecture2.pdf lecture3.pdf
 ```
+After you run the script, `output` will contain:
+- `cs_101_cheat_sheet`, which is your cheat sheet containing all the slides from `input/lecture1.pdf`, `input/lecture2.pdf`, `input/lecture3.pdf` in that order
+- `combined.pdf`, which is just all the slides from `input/lecture1.pdf`, `input/lecture2.pdf`, `input/lecture3.pdf` in that order combined into one PDF (without formatting adjustments).
+
+### Example 2
+#### Example (to create `output/cs_101_cheat_sheet.pdf` using the slides from all the PDFs you input):
+- First, place all the slide PDFs you want to use in `input/`.
+- Next, customize parameters (if desired) in `config.json`.
+- Then, run:
+```bash
+python3 generate_sheet.py cs_101_cheat_sheet.pdf
+```
+After you run the script, `output` will contain:
+- `cs_101_cheat_sheet`, which is your cheat sheet containing all the slides from `input/` in file order
+- `combined.pdf`, which is just all the slides from `input/` in file order combined into one PDF (without formatting adjustments).

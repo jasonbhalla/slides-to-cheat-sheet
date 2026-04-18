@@ -12,6 +12,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent
 INPUT_DIR = REPO_ROOT / "input"
 OUTPUT_DIR = REPO_ROOT / "output"
+CONFIG_PATH = REPO_ROOT / "config.json"
 
 
 def require_command(name: str) -> None:
@@ -341,17 +342,19 @@ def resolve_input_pdfs(user_args: list[str]) -> list[Path]:
 
 
 def main():
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         print(
             "Usage:\n"
-            "  python3 make_handout.py CONFIG.json output.pdf [lecture1.pdf lecture2.pdf ...]\n\n"
-            "If no lecture PDFs are listed, the script uses all PDFs in input/."
+            "  python3 generate_sheet.py <output_file.pdf> [<input_file_1.pdf> ...]\n\n"
+            "If no input PDF filenames are passed, it uses all PDFs in input/."
+            "Customize desired settings in config.json, and place all input PDF files in input/. Output PDF will generate in output/.\n"
+            "Example (to combine all slides from 'lecture1.pdf', 'lecture2.pdf', 'lecture3.pdf' into an output file called 'cs_101_cheat_sheet.pdf'):\n"
+            "  python3 generate_sheet.py cs_101_cheat_sheet.pdf lecture1.pdf lecture2.pdf lecture3.pdf\n\n"
         )
         sys.exit(1)
 
-    config_path = (REPO_ROOT / sys.argv[1]).resolve() if not Path(sys.argv[1]).is_absolute() else Path(sys.argv[1]).resolve()
-    output_name = sys.argv[2]
-    lecture_file_args = sys.argv[3:]
+    output_name = sys.argv[1]
+    lecture_file_args = sys.argv[2:]
 
     if output_name.lower().endswith(".pdf"):
         output_pdf = OUTPUT_DIR / output_name
@@ -360,7 +363,7 @@ def main():
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
-    config = load_config(config_path)
+    config = load_config(CONFIG_PATH)
 
     output_pages = int(config["output_pages"])
     if output_pages < 1:
@@ -378,7 +381,7 @@ def main():
     if total_slides < output_pages:
         raise SystemExit(f"Need at least {output_pages} total slides.")
 
-    print("Using config:", config_path.name)
+    print("Using config:", CONFIG_PATH.name)
     print("Input directory:", INPUT_DIR)
     print("Output directory:", OUTPUT_DIR)
 
