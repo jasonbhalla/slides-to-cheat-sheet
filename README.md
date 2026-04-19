@@ -3,7 +3,9 @@
 
 This script combines multiple lecture slide PDFs into one output PDF handout.
 
-## What to Add
+In some university classes, you are allowed to bring a "cheat sheet" to an exam, where you can put any notes you want. You can use this script to automatically build a "cheat sheet" that places all slides from the inputted slideshow on the sheet, as big as possible while still fitting them all.
+
+## Step 1: What to Add
 
 Ensure these core files are in the main folder, `slides-to-cheat-sheet`:
 
@@ -16,7 +18,7 @@ In `input/`, add your lecture slide PDFs, for example:
   - `lecture3.pdf`
   - etc.
 
-## What to Edit
+## Step 2: What to Edit
 
 Open `config.json` and set the values you want.
 
@@ -69,7 +71,7 @@ Open `config.json` and set the values you want.
 - `cleanup`  
   If `true`, temporary files like `.log` and generated `.tex` are deleted after the script runs.
 
-## How to Run
+## Step 3: How to Run
 
 Open Terminal, go into the folder, and run:
 
