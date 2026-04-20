@@ -1,4 +1,4 @@
-Convert Lecture Slides → Exam Reference Sheet
+# Convert Lecture Slides → Exam Reference Sheet
 
 This script combines multiple lecture slide PDFs into one output PDF cheat sheet / reference sheet.
 
