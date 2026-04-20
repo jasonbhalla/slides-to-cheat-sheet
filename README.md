@@ -1,4 +1,5 @@
-# slides-to-cheat-sheet: Convert Lecture Slides → Cheat Sheet / Reference Sheet
+# slides-to-cheat-sheet: 
+# Convert Lecture Slides → Cheat Sheet / Reference Sheet
 
 This script combines multiple lecture slide PDFs into one output PDF cheat sheet / reference sheet.
 
