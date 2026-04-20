@@ -78,12 +78,12 @@ Open `config.json` and set the values you want.
 Open Terminal, go into the folder, and run:
 
 ```bash
-python3 generate_sheet.py <output_file.pdf> [<input_file_1.pdf> ...]
+python3 generate_sheet.py <output_file_name.pdf> [<input_file_1.pdf> ...]
 ```
 
 - `generate_sheet.py` is the script that you run.
-- `<output_file.pdf>` is the file name to use for the outputted PDF cheat sheet, that will appear in `output/` (along with a file called `combined.pdf` which is simply all input slides combined into one PDF).
-- If you want to specify specific files (or a specific order of the files) in `input/` to be used in the output, list the file names (e.g. `<input_file_1.pdf> <input_file_2.pdf> ...`). You can also not specify any input files, in which case all PDFs in `input/` will automatically be used in file order.
+- `<output_file_name.pdf>` is the file name to use for the outputted PDF cheat sheet, that will appear in `output/` (along with a file called `combined.pdf` which is simply all input slides combined into one PDF).
+- If you want to specify specific files (or a specific order of the files) in `input/` to be used in the output, list the file names (e.g. `<input_file_1.pdf> <input_file_2.pdf> ...`). You can also not specify any input files, in which case all PDFs in `input/` will automatically be used (in file order).
 
 ## Examples of Usage
 
@@ -96,7 +96,7 @@ python3 generate_sheet.py <output_file.pdf> [<input_file_1.pdf> ...]
 python3 generate_sheet.py cs_101_cheat_sheet.pdf lecture1.pdf lecture2.pdf lecture3.pdf
 ```
 After you run the script, `output` will contain:
-- `cs_101_cheat_sheet`, which is your cheat sheet containing all the slides from `input/lecture1.pdf`, `input/lecture2.pdf`, `input/lecture3.pdf` in that order
+- `cs_101_cheat_sheet.pdf`, which is your cheat sheet containing all the slides from `input/lecture1.pdf`, `input/lecture2.pdf`, `input/lecture3.pdf` in that order
 - `combined.pdf`, which is just all the slides from `input/lecture1.pdf`, `input/lecture2.pdf`, `input/lecture3.pdf` in that order combined into one PDF (without formatting adjustments).
 
 ### Example 2
@@ -108,5 +108,5 @@ After you run the script, `output` will contain:
 python3 generate_sheet.py cs_101_cheat_sheet.pdf
 ```
 After you run the script, `output` will contain:
-- `cs_101_cheat_sheet`, which is your cheat sheet containing all the slides from `input/` in file order
+- `cs_101_cheat_sheet.pdf`, which is your cheat sheet containing all the slides from `input/` in file order
 - `combined.pdf`, which is just all the slides from `input/` in file order combined into one PDF (without formatting adjustments).
