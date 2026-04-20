@@ -95,18 +95,18 @@ python3 generate_sheet.py <output_file_name.pdf> [<input_file_1.pdf> ...]
 ```bash
 python3 generate_sheet.py cs_101_cheat_sheet.pdf lecture1.pdf lecture2.pdf lecture3.pdf
 ```
-After you run the script, `output` will contain:
+After you run the script, `output/` will contain:
 - `cs_101_cheat_sheet.pdf`, which is your cheat sheet containing all the slides from `input/lecture1.pdf`, `input/lecture2.pdf`, `input/lecture3.pdf` in that order
 - `combined.pdf`, which is just all the slides from `input/lecture1.pdf`, `input/lecture2.pdf`, `input/lecture3.pdf` in that order combined into one PDF (without formatting adjustments).
 
 ### Example 2
-#### Example (to create `output/cs_101_cheat_sheet.pdf` using the slides from all the PDFs you input):
+#### Example (to create `output/cs_101_cheat_sheet.pdf` using the slides from all the PDFs you put in `input/`):
 - First, place all the slide PDFs you want to use in `input/`.
 - Next, customize parameters (if desired) in `config.json`.
 - Then, run:
 ```bash
 python3 generate_sheet.py cs_101_cheat_sheet.pdf
 ```
-After you run the script, `output` will contain:
+After you run the script, `output/` will contain:
 - `cs_101_cheat_sheet.pdf`, which is your cheat sheet containing all the slides from `input/` in file order
 - `combined.pdf`, which is just all the slides from `input/` in file order combined into one PDF (without formatting adjustments).
