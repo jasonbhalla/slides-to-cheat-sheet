@@ -1,6 +1,6 @@
 # slides-to-cheat-sheet: Convert Lecture Slides → Cheat Sheet / Reference Sheet
 
-This script combines multiple lecture slide PDFs into one output PDF handout.
+This script combines multiple lecture slide PDFs into one output PDF cheat sheet / reference sheet.
 
 In some university classes, you are allowed to bring a "cheat sheet" to an exam, where you can put any notes you want. You can use this script to automatically build a "cheat sheet" that places all slides from the inputted slideshow on the sheet, as big as possible while still fitting them all.
 
@@ -26,14 +26,14 @@ Open `config.json` and set the values you want.
 ### What Each Setting Means
 
 - `output_pages`  
-  How many pages the final handout PDF should have.
+  How many pages the final output PDF should have.
 
 - `output_page.width_in`, `output_page.height_in`  
   The size of each output page, in inches.  
   Example: `11.0` by `8.5` for landscape letter.
 
 - `output_page.margins_in.left`, `bottom`, `right`, `top`  
-  The outer margins on the final handout pages, in inches.
+  The outer margins on the final output pages, in inches.
 
 - `slide.width_units`, `slide.height_units`  
   The slide aspect ratio.  
@@ -42,7 +42,8 @@ Open `config.json` and set the values you want.
   - `4` and `3` for older slides
 
 - `trim_pt.left`, `bottom`, `right`, `top`  
-  How much to crop off each slide **before** placing it in the handout.  
+  How much to crop off each slide **before** placing it in the output.
+  For example, if all slides have the same extra whitespace, you may want to trim it to allow the content to be bigger.
   Units are **points**.  
   `72 points = 1 inch`.  
   Use `0` if you do not want any cropping.
