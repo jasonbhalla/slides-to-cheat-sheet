@@ -1,10 +1,10 @@
 # Convert Lecture Slides → Exam Reference Sheet
 
-This script combines multiple lecture slide PDFs into one output PDF cheat sheet / reference sheet.
-
-In some university classes, you are allowed to bring a "cheat sheet" or reference sheet to an exam, where you can put any notes you want. You can use this script to automatically build a "cheat sheet" that places all slides from any inputted slideshows on the sheet, as big as possible while still fitting them all.
+This script combines multiple lecture slide PDFs into one output PDF "cheat sheet" / "reference sheet" / "notes page" / etc., with customizability, where each slide is as big as possible while guaranteeing that all slides fit.
 
 ![Example Image](slides-to-cheat-sheet-example-jasonbhalla.jpg)
+
+In some university classes, you are allowed to bring a "cheat sheet" or reference sheet / notes page to an exam, where you can put any notes you want. You can use this script to automatically build a "cheat sheet" that places all slides from any inputted slideshows on the sheet, as big as possible while still fitting them all.
 
 ## Step 1: What to Add
 
